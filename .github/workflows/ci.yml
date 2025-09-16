@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop", "release/**"]
+    paths-ignore: ["**/*.md", "docs/**"]
+  pull_request:
+    branches: ["main", "develop"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Make Maven Wrapper executable
+        run: chmod +x mvnw
+
+      - name: Build and test (Maven verify)
+        run: ./mvnw -B -ntp -Dstyle.color=always verify
+
+      - name: Publish JUnit to PR
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Testes Maven
+          path: "**/target/surefire-reports/*.xml"
+          reporter: java-junit
+
+      - name: Upload test reports (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          retention-days: 7
+
+      - name: Upload JAR (opcional)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: "**/target/*.jar"
+          retention-days: 7
