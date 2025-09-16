@@ -1,0 +1,46 @@
+name: Validate Workflows & YAML
+
+on:
+  push:
+    branches: ["main", "develop", "release/**"]
+    paths: [".github/**", "**/*.yml", "**/*.yaml"]
+  pull_request:
+    branches: ["main", "develop"]
+    paths: [".github/**", "**/*.yml", "**/*.yaml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: Lint GitHub Actions (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run actionlint
+        uses: rhysd/actionlint@v1
+        with:
+          args: -color
+
+  yamllint:
+    name: Lint YAML files (yamllint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          format: github
+          strict: true
+          file_or_dir: |
+            .
