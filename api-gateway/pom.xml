@@ -43,6 +43,26 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
+      <plugin>
+        <groupId>com.google.cloud.tools</groupId>
+        <artifactId>jib-maven-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <to>
+            <image>ghcr.io/${env.GH_REPOSITORY_LOWER}/${project.artifactId}</image>
+            <tags>
+              <tag>latest</tag>
+              <tag>${env.GITHUB_SHA}</tag>
+            </tags>
+          </to>
+          <container>
+            <jvmFlags>
+              <jvmFlag>-Djava.security.egd=file:/dev/./urandom</jvmFlag>
+            </jvmFlags>
+            <creationTime>USE_CURRENT_TIMESTAMP</creationTime>
+          </container>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 </project>
