@@ -3,7 +3,7 @@ package com.viniss.todo.activity;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.viniss.todo")
 public class ActivityServiceApplication {
   public static void main(String[] args) {
     SpringApplication.run(ActivityServiceApplication.class, args);
