@@ -18,3 +18,45 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
         spring.json.trusted.packages: "*"
+
+  cloud:
+    openfeign:
+      client:
+        # (opcional) permitir refresh dinâmico desses timeouts via /actuator/refresh
+        refresh-enabled: true
+        config:
+          task:
+            connectTimeout: 1000    # 1s
+            readTimeout: 1500       # 1.5s
+            loggerLevel: basic
+
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      task:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+
+
+
+
+  retry:
+    instances:
+      task:
+        maxAttempts: 3
+        waitDuration: 200ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - feign.RetryableException
+          - java.io.IOException
+
+  timelimiter:
+    instances:
+      task:
+        timeoutDuration: 2s
