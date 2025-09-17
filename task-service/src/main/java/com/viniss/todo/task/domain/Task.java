@@ -1,7 +1,10 @@
 package com.viniss.todo.task.domain;
 
+import com.viniss.todo.common.dto.TaskStatus;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -16,7 +19,8 @@ public class Task {
   private String projectId;
   private String title;
   private String description;
-  private String status;
+  @Enumerated(EnumType.STRING)
+  private TaskStatus status;
   private Instant createdAt;
   private Instant updatedAt;
 
@@ -31,8 +35,8 @@ public class Task {
   public void setTitle(String title) { this.title = title; }
   public String getDescription() { return description; }
   public void setDescription(String description) { this.description = description; }
-  public String getStatus() { return status; }
-  public void setStatus(String status) { this.status = status; }
+  public TaskStatus getStatus() { return status; }
+  public void setStatus(TaskStatus status) { this.status = status; }
   public Instant getCreatedAt() { return createdAt; }
   public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
   public Instant getUpdatedAt() { return updatedAt; }
