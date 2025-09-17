@@ -1,9 +1,15 @@
 package com.viniss.todo.activity.domain;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
 
-public interface ActivityRepository extends JpaRepository<Activity, Long> {
+/**
+ * Domain port for activity persistence.
+ *
+ * This interface must not depend on Spring Data or any persistence technology.
+ * Adapters (e.g., JPA) should implement this contract.
+ */
+public interface ActivityRepository {
+  Activity save(Activity activity);
+  List<Activity> findAll();
   List<Activity> findByProjectIdOrderByAtDesc(String projectId);
 }
