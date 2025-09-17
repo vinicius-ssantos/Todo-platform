@@ -34,7 +34,6 @@ public class ResilienceFeignConfig {
     FeignDecorators decorators = FeignDecorators.builder()
         .withCircuitBreaker(cb)
         .withRetry(rty)
-        .withTimeLimiter(tlim, scheduler)
         .build();
 
     return Resilience4jFeign.builder(decorators);

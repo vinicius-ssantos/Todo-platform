@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.*;
 import org.slf4j.MDC;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.concurrent.TimeoutException;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -35,6 +37,18 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ApiError> handleGeneric(Exception ex) {
     return response("internal_error", "Erro inesperado", Map.of("reason", ex.getClass().getSimpleName()),
                     HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  @ExceptionHandler(CallNotPermittedException.class)
+  public ResponseEntity<ApiError> handleCircuitOpen(CallNotPermittedException ex) {
+    return response("circuit_open", "Circuit breaker aberto para o serviço downstream", 
+                   Map.of(), HttpStatus.SERVICE_UNAVAILABLE);
+  }
+
+  @ExceptionHandler(TimeoutException.class)
+  public ResponseEntity<ApiError> handleTimeout(TimeoutException ex) {
+    return response("upstream_timeout", "Tempo limite ao chamar o serviço downstream", 
+                   Map.of(), HttpStatus.GATEWAY_TIMEOUT);
   }
 
   private ResponseEntity<ApiError> response(String code, String msg, Map<String,Object> details, HttpStatus s) {
