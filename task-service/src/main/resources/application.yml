@@ -2,6 +2,9 @@ server:
   port: 8081
   virtual-threads:
     enabled: true
+  error:
+    include-stacktrace: never
+    include-binding-errors: never
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/todo

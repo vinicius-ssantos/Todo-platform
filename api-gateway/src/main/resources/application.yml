@@ -2,6 +2,9 @@ server:
   port: 8080
   virtual-threads:
     enabled: true
+  error:
+    include-stacktrace: never
+    include-binding-errors: never
 
 clients:
   task:
