@@ -5,13 +5,16 @@ import com.viniss.todo.common.dto.TaskResponse;
 import com.viniss.todo.common.dto.UpdateTaskRequest;
 import com.viniss.todo.common.feign.FeignHeadersConfig;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "task", url = "${clients.task.url}", configuration = FeignHeadersConfig.class)
+@FeignClient(name = "task", url = "${clients.task.url}", configuration = {FeignHeadersConfig.class, ResilienceFeignConfig.class})
 public interface TaskClient {
-  @PostMapping(path = "/tasks")
-  TaskResponse create(@RequestBody CreateTaskRequest req);
+    @PostMapping(path = "/tasks")
+    TaskResponse create(@RequestBody CreateTaskRequest req);
 
-  @PutMapping(path = "/tasks/{id}")
-  TaskResponse  update(@PathVariable("id") String id, @RequestBody UpdateTaskRequest req);
+    @PutMapping(path = "/tasks/{id}")
+    TaskResponse update(@PathVariable("id") String id, @RequestBody UpdateTaskRequest req);
 }
