@@ -1,80 +1,81 @@
-# Todo-platform – Revisão de Arquitetura (Ponto 1: Arquitetura e boas práticas)
+# Todo-platform – Revisão de Arquitetura (Checklist vivo)
 
-Este documento revisa a separação de responsabilidades entre módulos, identifica acoplamentos desnecessários/risco de dependências circulares, sugere padrões (DDD, hexagonal, CQRS/event sourcing) e exemplifica uma reorganização por camadas (application vs domain vs adapters) aplicável incrementalmente.
+Este documento foi reescrito em formato de checklist. INSTRUÇÃO: sempre que houver uma mudança no código ou na arquitetura referente a algum item, marque [x] quando concluído ou desmarque [ ] quando voltar a ficar pendente/em revisão. Opcionalmente, adicione uma breve nota e data ao lado do item alterado.
 
+Última atualização: 2025-09-17 15:50
+
+---
 
 ## 1) Separação de responsabilidades entre módulos (estado atual)
 
-- common
-  - OK: concentra DTOs e modelos de eventos usados entre serviços.
-  - Observação: contém também classes Spring (FeignHeadersConfig, filtros/interceptors HTTP). Isso cria acoplamento do módulo comum a Spring MVC/Feign.
-- task-service
-  - Exponde REST (TaskRestController), persiste entidade Task (JPA), publica eventos no Kafka (TaskEventProducer) e tem serviço de aplicação (TaskAppService).
-- activity-service
-  - Consome eventos do Kafka (TaskEventListener) e expõe endpoints de consulta (ActivityController) sobre Activity.
-- api-gateway
-  - Edge HTTP (Feign para task-service e activity-service) e WebSocket. Também possui um Kafka consumer (TaskEventConsumer) para retransmitir por WS.
+- [x] common concentra DTOs e modelos de eventos usados entre serviços (validado).
+- [x] common continha classes Spring (FeignHeadersConfig, filtros/interceptors HTTP); isso acoplava o módulo a Spring MVC/Feign. Ação aplicada: movidas para o módulo opcional common-spring. (2025-09-17 15:23) Referência: seção 2.
+- [x] task-service expõe REST (TaskRestController), persiste Task (JPA), publica eventos no Kafka (TaskEventProducer) e possui serviço de aplicação (TaskAppService).
+- [x] activity-service consome eventos do Kafka (TaskEventListener) e expõe endpoints de consulta (ActivityController) sobre Activity.
+- [x] api-gateway atua como Edge HTTP (Feign para task-service e activity-service) e WebSocket; possui consumidor Kafka (TaskEventConsumer) para retransmitir por WS.
+- [x] Separação macro por serviços coerente, com pequenos pontos de acoplamento a melhorar (ver seção 2).
 
-Resumo: a separação macro por serviços está coerente. Há pequenos pontos de acoplamento que podem ser melhorados (ver seção 2).
-
+---
 
 ## 2) Acoplamentos desnecessários e riscos de dependências circulares
 
 - common -> Spring acoplamento
-  - Problema: classes com dependência de Spring (FeignHeadersConfig, RequestLogging*) dentro de common forçam todos os consumidores a dependerem de infraestrutura web.
-  - Risco: evolução do common fica travada por versões específicas de Spring e pode induzir dependências cruzadas futuras.
-  - Ação sugerida: mover as configs específicas de Spring para cada serviço que as usa, ou para um novo módulo opcional (ex.: common-spring) dependente de common, nunca o contrário.
+  - [x] Problema (resolvido): existiam classes dependentes de Spring dentro de common (FeignHeadersConfig, RequestLogging*), forçando consumidores a dependerem de infraestrutura web.
+  - [x] Ação aplicada: configurações Spring movidas para o módulo opcional common-spring; common permanece livre de frameworks de infraestrutura. (2025-09-17 15:23)
 
 - task-service (aplicação -> adapter Kafka)
-  - Problema: TaskAppService dependia diretamente de TaskEventProducer (Kafka). Isso liga a regra de aplicação a uma tecnologia específica.
-  - Ação aplicada: introduzido o porto de saída TaskEventPublisher na aplicação e o adapter Kafka passou a implementá-lo (hexagonal). Ver seção 4.
+  - [x] Problema anterior: TaskAppService dependia diretamente de TaskEventProducer (Kafka), acoplando regra de aplicação a tecnologia.
+  - [x] Ação aplicada: introduzido o porto de saída TaskEventPublisher na aplicação e o adapter Kafka passou a implementá-lo (hexagonal). Ver seção 4.
 
 - api-gateway como consumidor Kafka
-  - Observação: o gateway consumindo Kafka cria dependência direta do edge em mensageria. É válido para uso de WS/broadcast, mas considere um canal dedicado (ex.: activity-service publicar eventos "activity" que o gateway consome) para evitar acoplamento direto ao domínio de tarefas.
+  - [ ] Observação: o gateway consumindo Kafka cria dependência direta do edge em mensageria. Avaliar um canal dedicado (ex.: activity-service publicar eventos "activity" para o gateway) para evitar acoplamento direto ao domínio de tarefas.
 
 - Dependências circulares
-  - Não foram identificadas dependências circulares entre módulos Maven (common é apenas referenciado, não referencia serviços).
-  - Atenção: mantenha a regra “common não depende de outros módulos”; serviços não devem depender entre si diretamente (via código), apenas via HTTP/Feign ou eventos.
+  - [x] Não foram identificadas dependências circulares entre módulos Maven (common é apenas referenciado, não referencia serviços).
+  - [x] Regra a manter: “common não depende de outros módulos”; serviços não devem depender entre si diretamente (via código), apenas via HTTP/Feign ou eventos.
 
+---
 
 ## 3) Padrões aplicáveis
 
 - DDD (Domain-Driven Design)
-  - Bounded Contexts: task-service e activity-service são contextos distintos.
-  - Linguagem ubíqua: status de Task deveria ser enum (já existe em common.dto.TaskStatus para DTO; considerar alinhar entidade JPA).
-- Arquitetura Hexagonal (Ports & Adapters)
-  - Application (caso de uso), Domain (entidades + regras), Adapters (HTTP, Kafka, JPA, Feign).
-  - Benefício: permite testar lógica de aplicação sem infraestrutura e trocar adapters (ex.: Kafka->RabbitMQ) sem tocar o core.
-- CQRS
-  - Gateway pode adotar leitura via activity-service e escrita via task-service (já ocorre). Internamente, pode-se separar modelos de leitura e escrita se necessário (não obrigatório agora).
-- Event Sourcing
-  - Não necessário no estágio atual. Considere apenas se houver necessidade de auditoria completa e reconstrução de estado. Hoje, eventos de integração são suficientes.
+  - [x] Bounded Contexts distintos: task-service e activity-service.
+  - [x] Linguagem ubíqua: entidade JPA de Task alinhada para usar enum de status equivalente ao DTO (common.dto.TaskStatus). (2025-09-17 15:27)
 
+- Arquitetura Hexagonal (Ports & Adapters)
+  - [x] Núcleo: Application (casos de uso), Domain (entidades + regras), Adapters (HTTP, Kafka, JPA, Feign). Prática já iniciada no task-service com porta de eventos.
+  - [ ] Expandir a organização hexagonal (application/domain/adapters) para todos os serviços.
+
+- CQRS
+  - [x] Gateway já pratica leitura via activity-service e escrita via task-service.
+  - [ ] Separar modelos de leitura e escrita internamente se necessário (não obrigatório agora).
+
+- Event Sourcing
+  - [x] Não necessário no estágio atual. Manter eventos de integração simples e versionados.
+
+---
 
 ## 4) Exemplo de reorganização (incremental) – application vs domain vs adapters
 
-A seguinte estrutura pode ser adotada gradualmente, sem mudanças drásticas, iniciando pelo task-service:
+Estrutura alvo a ser adotada gradualmente (começando pelo task-service):
 
 - com.viniss.todo.task.domain
-  - Task, TaskRepository (regras do domínio e portas primárias se necessário)
+  - [x] Task, TaskRepository (regras do domínio e portas primárias, se necessário) organizados conforme domínio. (2025-09-17 15:30)
 - com.viniss.todo.task.application
-  - Serviços de aplicação (orquestram casos de uso): TaskAppService
-  - Ports out (dependências externas): application.port.out.TaskEventPublisher
+  - [x] Serviços de aplicação (orquestram casos de uso): TaskAppService. (2025-09-17 15:38) Pacote renomeado para com.viniss.todo.task.application.
+  - [x] Ports out (dependências externas): application.port.out.TaskEventPublisher (introduzido).
 - com.viniss.todo.task.adapters
-  - http: TaskRestController
-  - kafka: TaskEventProducer (implementa TaskEventPublisher)
-  - persistence/jpa: implementações de repositórios se usado o padrão de porta para persistência
+  - [x] http: TaskRestController (adapter HTTP já existente em com.viniss.todo.task.http). (2025-09-17 15:30)
+  - [x] kafka: TaskEventProducer implementa TaskEventPublisher.
+  - [x] persistence/jpa: implementações de repositórios se for adotado padrão de porta para persistência. (2025-09-17 15:41) Implementado no task-service: porto de domínio TaskRepository (sem Spring) e adapter JPA (TaskRepositoryJpaAdapter + SpringDataTaskRepository).
 
 Mudanças já aplicadas (exemplo prático):
 
-- Criado o porto de saída:
-  - task-service/src/main/java/com/viniss/todo/task/application/port/out/TaskEventPublisher.java
-- Adapter Kafka passou a implementar a porta:
-  - task-service/src/main/java/com/viniss/todo/task/kafka/TaskEventProducer.java implements TaskEventPublisher
-- TaskAppService agora depende da porta (não do Kafka):
-  - task-service/src/main/java/com/viniss/todo/task/service/TaskAppService.java (campo eventPublisher)
+- [x] Criado o porto de saída: task-service/src/main/java/com/viniss/todo/task/application/port/out/TaskEventPublisher.java
+- [x] Adapter Kafka implementa a porta: task-service/src/main/java/com/viniss/todo/task/kafka/TaskEventProducer.java
+- [x] TaskAppService agora depende da porta (não do Kafka): task-service/src/main/java/com/viniss/todo/task/service/TaskAppService.java (campo eventPublisher)
 
-Isso reduz acoplamento da camada de aplicação a tecnologia de mensageria e serve como guia para outras dependências externas.
+Isso reduz acoplamento da camada de aplicação à tecnologia de mensageria e serve de guia para outras dependências externas.
 
 Snippet (porta):
 
@@ -105,27 +106,35 @@ public class TaskEventProducer implements TaskEventPublisher {
 }
 ```
 
+---
 
-## 5) Roadmap incremental sugerido
+## 5) Roadmap incremental sugerido (checklist)
 
 1. Quick wins (baixo esforço, alto retorno)
-   - Introduzir portas onde a aplicação toca infraestrutura diretamente (ex.: publicação de eventos, envio de emails, storage externo). Exemplificado em TaskEventPublisher. Referência: task-service/...TaskAppService.java, ...TaskEventProducer.java.
-   - Documentar responsabilidades e regras em package-info.java de cada camada (domain/application/adapters). Referência: task-service/src/main/java/com/viniss/todo/task/... .
-   - Garantir que common contenha apenas DTOs/eventos/utilitários e não componentes Spring. Mover FeignHeadersConfig e HTTP interceptors para api-gateway. Referências: common/.../feign, http.
+   - [x] Introduzir portas onde a aplicação toca infraestrutura diretamente para publicação de eventos (TaskEventPublisher no task-service). Referência: TaskAppService, TaskEventProducer.
+   - [ ] Introduzir portas para outras integrações externas (ex.: envio de emails, storage externo), se/quando surgirem.
+   - [x] Documentar responsabilidades e regras em package-info.java de cada camada (domain/application/adapters) nos serviços. (2025-09-17 15:30) Adicionados package-info no task-service (domain, service, application.port.out, http, kafka). (2025-09-17 15:35) Adicionados package-info no activity-service (domain, http, kafka) e no api-gateway (http, kafka, ws). (2025-09-17 15:50) Adicionado package-info no activity-service (persistence/jpa).
+   - [x] Garantir que common contenha apenas DTOs/eventos/utilitários e não componentes Spring. Feito: FeignHeadersConfig e HTTP interceptors movidos para o módulo opcional (common-spring). (2025-09-17 15:23)
+   - [x] Expor PATCH no api-gateway para encaminhar updates parciais ao task-service (Feign + Controller). (2025-09-17 15:50)
 
 2. Melhorias estruturais
-   - Reorganizar pacotes para refletir hexagonal (application, domain, adapters) em todos os serviços. Começar por task-service e repetir em activity-service.
-   - Extrair configurações Spring específicas do common para um novo módulo opcional (common-spring) ou para cada serviço consumidor.
-   - Introduzir portas também para persistência se quiser trocar JPA/DB futuramente (ex.: DomainRepository + Adapter JPA implementando-o). Não obrigatório se o Spring Data já abstrai o suficiente para o projeto.
+   - [ ] Reorganizar pacotes para refletir hexagonal (application, domain, adapters) em todos os serviços (começar por task-service e repetir em activity-service).
+   - [x] Extrair configurações Spring específicas do common para um novo módulo opcional (common-spring) ou para cada serviço consumidor, mantendo common sem dependências de Spring. (2025-09-17 15:23) Concluído: ver seção 2 e módulo common-spring.
+   - [x] Considerar portas também para persistência se for desejável trocar JPA/DB futuramente (ex.: DomainRepository + Adapter JPA). Aplicado no task-service e activity-service (2025-09-17 15:44). Não obrigatório se o Spring Data já abstrai o suficiente.
 
 3. Evolução futura
-   - Aplicar CQRS mais claro no gateway: controllers de leitura consultando activity-service, escrita indo para task-service, com modelos de resposta específicos.
-   - Caso surja a necessidade de auditoria completa, avaliar Event Sourcing para Task, com stream de eventos versionado. Até lá, mantenha eventos de integração simples e versionados.
+   - [ ] Aplicar CQRS mais claro no gateway: controllers de leitura consultando activity-service, escrita indo para task-service, com modelos de resposta específicos.
+   - [ ] Caso surja a necessidade de auditoria completa, avaliar Event Sourcing para Task, com stream de eventos versionado. Até lá, manter eventos de integração simples e versionados.
 
+---
 
-## 6) Critérios e boas práticas
+## 6) Critérios e boas práticas (checklist de conformidade)
 
-- Mantenha módulos livres de dependências cruzadas (apenas common deve ser compartilhado e livre de frameworks de infraestrutura).
-- Nomeie pacotes por papel (application/domain/adapters) e por tecnologia na borda (http, kafka, ws, jpa).
-- Os serviços de aplicação orquestram casos de uso; domínio permanece pequeno e expressivo; adapters lidam com tecnologia.
-- Faça mudanças incrementalmente para minimizar impacto e risco.
+- [x] Módulos livres de dependências cruzadas (apenas common é compartilhado e livre de frameworks de infraestrutura). (2025-09-17 15:30) Mantido; gateway depende de common-spring (opcional) e não há dependências cruzadas entre serviços.
+- [x] Nomear pacotes por papel (application/domain/adapters) e por tecnologia na borda (http, kafka, ws, jpa). (2025-09-17 15:38) Parcial: task-service ajustado; demais serviços pendentes.
+- [ ] Serviços de aplicação orquestram casos de uso; domínio permanece pequeno e expressivo; adapters lidam com tecnologia.
+- [ ] Realizar mudanças incrementalmente para minimizar impacto e risco.
+
+---
+
+Lembrete: sempre que houver uma mudança, marque ou desmarque o check do(s) item(ns) afetado(s) e, se útil, inclua uma breve observação com data para histórico.
