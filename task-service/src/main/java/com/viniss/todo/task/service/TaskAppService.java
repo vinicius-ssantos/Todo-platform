@@ -5,9 +5,9 @@ import com.viniss.todo.common.dto.TaskResponse;
 import com.viniss.todo.common.dto.UpdateTaskRequest;
 import com.viniss.todo.common.events.TaskCreated;
 import com.viniss.todo.common.events.TaskUpdated;
+import com.viniss.todo.task.application.port.out.TaskEventPublisher;
 import com.viniss.todo.task.domain.Task;
 import com.viniss.todo.task.domain.TaskRepository;
-import com.viniss.todo.task.kafka.TaskEventProducer;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -18,11 +18,11 @@ import java.util.UUID;
 @Service
 public class TaskAppService {
   private final TaskRepository repository;
-  private final TaskEventProducer producer;
+  private final TaskEventPublisher eventPublisher;
 
-  public TaskAppService(TaskRepository repository, TaskEventProducer producer) {
+  public TaskAppService(TaskRepository repository, TaskEventPublisher eventPublisher) {
     this.repository = repository;
-    this.producer = producer;
+    this.eventPublisher = eventPublisher;
   }
 
   public TaskResponse create(CreateTaskRequest req) {
@@ -39,7 +39,7 @@ public class TaskAppService {
     Task saved = repository.save(t);
 
     // Evento de integração (agora com taskId e OffsetDateTime)
-    producer.publishCreated(new TaskCreated(
+    eventPublisher.publishCreated(new TaskCreated(
             saved.getId(), // taskId
             saved.getProjectId(),
             saved.getTitle(),
@@ -63,7 +63,7 @@ public class TaskAppService {
 
     Task saved = repository.save(t);
 
-    producer.publishUpdated(new TaskUpdated(
+    eventPublisher.publishUpdated(new TaskUpdated(
             saved.getId(), // taskId
             saved.getProjectId(),
             saved.getTitle(),
