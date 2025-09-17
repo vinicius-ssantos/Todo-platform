@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  checks: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -31,14 +32,16 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Make Maven Wrapper executable
-        run: chmod +x mvnw
+      - name: Set up Maven
+        uses: s4u/setup-maven-action@v1
+        with:
+          maven-version: '3.9.8'
 
       - name: Build and test (Maven verify)
-        run: ./mvnw -B -ntp -Dstyle.color=always verify
+        run: mvn -B -ntp -Dstyle.color=always verify
 
       - name: Publish JUnit to PR
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
         uses: dorny/test-reporter@v1
         with:
           name: Testes Maven
