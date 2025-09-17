@@ -19,4 +19,7 @@ public class TaskController {
 
   @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
   public TaskResponse update(@PathVariable("id") String id, @RequestBody UpdateTaskRequest req) { return client.update(id, req); }
+
+  @PatchMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+  public TaskResponse patch(@PathVariable("id") String id, @RequestBody UpdateTaskRequest req) { return client.patch(id, req); }
 }

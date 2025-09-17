@@ -8,6 +8,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(name = "task", url = "${clients.task.url}", configuration = {FeignHeadersConfig.class, ResilienceFeignConfig.class})
@@ -17,4 +18,7 @@ public interface TaskClient {
 
     @PutMapping(path = "/tasks/{id}")
     TaskResponse update(@PathVariable("id") String id, @RequestBody UpdateTaskRequest req);
+
+    @PatchMapping(path = "/tasks/{id}")
+    TaskResponse patch(@PathVariable("id") String id, @RequestBody UpdateTaskRequest req);
 }
