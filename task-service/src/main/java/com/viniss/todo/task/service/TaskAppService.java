@@ -1,8 +1,9 @@
-package com.viniss.todo.task.service;
+package com.viniss.todo.task.application;
 
 import com.viniss.todo.common.dto.CreateTaskRequest;
 import com.viniss.todo.common.dto.TaskResponse;
 import com.viniss.todo.common.dto.UpdateTaskRequest;
+import com.viniss.todo.common.dto.TaskStatus;
 import com.viniss.todo.common.events.TaskCreated;
 import com.viniss.todo.common.events.TaskUpdated;
 import com.viniss.todo.task.application.port.out.TaskEventPublisher;
@@ -31,7 +32,7 @@ public class TaskAppService {
     t.setProjectId(req.projectId());
     t.setTitle(req.title());
     t.setDescription(req.description());
-    t.setStatus("TODO"); // default inicial (mantive String p/ bater com sua entidade)
+    t.setStatus(TaskStatus.TODO); // default inicial
     t.setCreatedAt(Instant.now());
     t.setUpdatedAt(t.getCreatedAt());
     t.setLabels(req.labels() == null ? new ArrayList<>() : new ArrayList<>(req.labels()));
@@ -43,7 +44,7 @@ public class TaskAppService {
             saved.getId(), // taskId
             saved.getProjectId(),
             saved.getTitle(),
-            saved.getStatus(),
+            saved.getStatus().name(),
             saved.getCreatedAt().atOffset(ZoneOffset.UTC), // OffsetDateTime
             saved.getLabels()
     ));
@@ -57,7 +58,7 @@ public class TaskAppService {
 
     if (req.title() != null) t.setTitle(req.title());
     if (req.description() != null) t.setDescription(req.description());
-    if (req.status() != null) t.setStatus(req.status());
+    if (req.status() != null) t.setStatus(TaskStatus.valueOf(req.status()));
     if (req.labels() != null) t.setLabels(new ArrayList<>(req.labels()));
     t.setUpdatedAt(Instant.now());
 
@@ -67,7 +68,7 @@ public class TaskAppService {
             saved.getId(), // taskId
             saved.getProjectId(),
             saved.getTitle(),
-            saved.getStatus(),
+            saved.getStatus().name(),
             saved.getUpdatedAt().atOffset(ZoneOffset.UTC), // OffsetDateTime
             saved.getLabels()
     ));
@@ -86,7 +87,7 @@ public class TaskAppService {
             t.getProjectId(),
             t.getTitle(),
             t.getDescription(),
-            t.getStatus(),
+            t.getStatus() == null ? null : t.getStatus().name(),
             t.getCreatedAt() == null ? null : t.getCreatedAt().atOffset(ZoneOffset.UTC),
             t.getUpdatedAt() == null ? null : t.getUpdatedAt().atOffset(ZoneOffset.UTC),
             t.getLabels()
