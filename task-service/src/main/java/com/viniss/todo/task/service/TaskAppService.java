@@ -1,4 +1,4 @@
-package com.viniss.todo.task.application;
+package com.viniss.todo.task.service;
 
 import com.viniss.todo.common.dto.CreateTaskRequest;
 import com.viniss.todo.common.dto.TaskResponse;

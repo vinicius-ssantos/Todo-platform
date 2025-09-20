@@ -6,47 +6,31 @@ server:
     include-stacktrace: never
     include-binding-errors: never
 
-
-
 clients:
   task:
-    url: http://localhost:8081
+    url: http://task-service.example.com:8081
   activity:
-    url: http://localhost:8082
+    url: http://activity-service.example.com:8082
 
 spring:
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka.example.com:9092
     consumer:
-      group-id: gateway
+      group-id: gateway-example
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
-        spring.json.trusted.packages: "com.viniss.todo.common.events,com.viniss.todo.common.dto"
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          # Para Keycloak
-          issuer-uri: "${JWT_ISSUER_URI:http://localhost:8080/auth/realms/todo-realm}"
-
-          # Para Auth0 ou similar (alternativa)
-          # issuer-uri: "${JWT_ISSUER_URI:https://your-tenant.auth0.com/}"
-
-          # Para validação customizada (se necessário)
-          # jwk-set-uri: "${JWT_JWK_SET_URI:http://localhost:8080/auth/realms/todo-realm/protocol/openid_connect/certs}"
+        spring.json.trusted.packages: com.example.common.events,com.example.common.dto
 
   cloud:
     openfeign:
       client:
-        # (opcional) permitir refresh dinâmico desses timeouts via /actuator/refresh
         refresh-enabled: true
         config:
           task:
-            connectTimeout: 1000    # 1s
-            readTimeout: 1500       # 1.5s
+            connectTimeout: 2000
+            readTimeout: 3000
             loggerLevel: basic
-
 
 resilience4j:
   circuitbreaker:
@@ -58,9 +42,6 @@ resilience4j:
         failureRateThreshold: 50
         waitDurationInOpenState: 10s
         permittedNumberOfCallsInHalfOpenState: 3
-
-
-
 
   retry:
     instances:
@@ -77,15 +58,3 @@ resilience4j:
     instances:
       task:
         timeoutDuration: 2s
-
-
-# Configurações de segurança para application.yml do api-gateway
-app:
-  websocket:
-    allowed-origins:
-      - "http://localhost:3000"
-  cors:
-    allowed-origins:
-      - "http://localhost:3000"
-
-

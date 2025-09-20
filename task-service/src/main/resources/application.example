@@ -1,0 +1,23 @@
+server:
+  port: 8081
+  virtual-threads:
+    enabled: true
+  error:
+    include-stacktrace: never
+    include-binding-errors: never
+
+spring:
+  datasource:
+    url: jdbc:postgresql://db.example.com:5432/todo
+    username: user_example
+    password: secret123
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  kafka:
+    bootstrap-servers: kafka.example.com:9092
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
