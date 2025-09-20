@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
     Map<String,Object> details = new LinkedHashMap<>();
     ex.getBindingResult().getFieldErrors().forEach(err -> details.put(err.getField(), err.getDefaultMessage()));
     ex.getBindingResult().getGlobalErrors().forEach(err -> details.put(err.getObjectName(), err.getDefaultMessage()));
-    return response("validation_error", "Payload inválido", details, HttpStatus.UNPROCESSABLE_ENTITY);
+    return response("validation_error", "Payload inválido", details, HttpStatus.BAD_REQUEST);
   }
 
   // 400 - Bean Validation em params/path (@Validated)

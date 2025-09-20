@@ -8,7 +8,7 @@ import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record CreateTaskRequest(
-        @NotBlank @Size(max = 140) String title,
+        @NotBlank @Size(max = 120) String title,
         @Size(max = 4000) String description,
         String projectId,
         List<String> labels
