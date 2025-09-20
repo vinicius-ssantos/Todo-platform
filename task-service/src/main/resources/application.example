@@ -1,60 +1,23 @@
 server:
-  port: 8080
+  port: 8081
   virtual-threads:
     enabled: true
   error:
     include-stacktrace: never
     include-binding-errors: never
 
-clients:
-  task:
-    url: http://task-service.example.com:8081
-  activity:
-    url: http://activity-service.example.com:8082
-
 spring:
+  datasource:
+    url: jdbc:postgresql://db.example.com:5432/todo
+    username: user_example
+    password: secret123
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.jdbc.time_zone: UTC
   kafka:
     bootstrap-servers: kafka.example.com:9092
-    consumer:
-      group-id: gateway-example
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      properties:
-        spring.json.trusted.packages: com.example.common.events,com.example.common.dto
-
-  cloud:
-    openfeign:
-      client:
-        refresh-enabled: true
-        config:
-          task:
-            connectTimeout: 2000
-            readTimeout: 3000
-            loggerLevel: basic
-
-resilience4j:
-  circuitbreaker:
-    instances:
-      task:
-        slidingWindowType: COUNT_BASED
-        slidingWindowSize: 20
-        minimumNumberOfCalls: 10
-        failureRateThreshold: 50
-        waitDurationInOpenState: 10s
-        permittedNumberOfCallsInHalfOpenState: 3
-
-  retry:
-    instances:
-      task:
-        maxAttempts: 3
-        waitDuration: 200ms
-        enableExponentialBackoff: true
-        exponentialBackoffMultiplier: 2
-        retryExceptions:
-          - feign.RetryableException
-          - java.io.IOException
-
-  timelimiter:
-    instances:
-      task:
-        timeoutDuration: 2s
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer

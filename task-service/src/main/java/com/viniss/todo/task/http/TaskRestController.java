@@ -3,7 +3,7 @@ package com.viniss.todo.task.http;
 import com.viniss.todo.common.dto.CreateTaskRequest;
 import com.viniss.todo.common.dto.TaskResponse;
 import com.viniss.todo.common.dto.UpdateTaskRequest;
-import com.viniss.todo.task.application.TaskAppService;
+import com.viniss.todo.task.service.TaskAppService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
