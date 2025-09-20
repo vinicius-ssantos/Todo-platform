@@ -6,6 +6,8 @@ server:
     include-stacktrace: never
     include-binding-errors: never
 
+
+
 clients:
   task:
     url: http://localhost:8081
@@ -20,7 +22,19 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
-        spring.json.trusted.packages: "*"
+        spring.json.trusted.packages: "com.viniss.todo.common.events,com.viniss.todo.common.dto"
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Para Keycloak
+          issuer-uri: "${JWT_ISSUER_URI:http://localhost:8080/auth/realms/todo-realm}"
+
+          # Para Auth0 ou similar (alternativa)
+          # issuer-uri: "${JWT_ISSUER_URI:https://your-tenant.auth0.com/}"
+
+          # Para validação customizada (se necessário)
+          # jwk-set-uri: "${JWT_JWK_SET_URI:http://localhost:8080/auth/realms/todo-realm/protocol/openid_connect/certs}"
 
   cloud:
     openfeign:
@@ -63,3 +77,15 @@ resilience4j:
     instances:
       task:
         timeoutDuration: 2s
+
+
+# Configurações de segurança para application.yml do api-gateway
+app:
+  websocket:
+    allowed-origins:
+      - "http://localhost:3000"
+  cors:
+    allowed-origins:
+      - "http://localhost:3000"
+
+
