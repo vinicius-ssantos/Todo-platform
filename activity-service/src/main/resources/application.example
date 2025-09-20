@@ -1,20 +1,21 @@
 server:
-  port: 8082
+  port: 8080
   virtual-threads:
     enabled: true
+
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/todo
-    username: postgres
-    password: postgres
+    url: jdbc:postgresql://db.example.com:5432/todo
+    username: user_example
+    password: secret123
   jpa:
     hibernate:
       ddl-auto: update
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka.example.com:9092
     consumer:
-      group-id: activity
+      group-id: example-group
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
-        spring.json.trusted.packages: "com.viniss.todo.common.events,com.viniss.todo.common.dto"
+        spring.json.trusted.packages: com.example.common.events,com.example.common.dto
