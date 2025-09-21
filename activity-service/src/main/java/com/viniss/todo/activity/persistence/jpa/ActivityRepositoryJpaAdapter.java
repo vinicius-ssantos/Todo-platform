@@ -18,6 +18,11 @@ public class ActivityRepositoryJpaAdapter implements ActivityRepository {
   public Activity save(Activity activity) {
     return delegate.save(activity);
   }
+  
+  @Override
+  public List<Activity> saveAll(List<Activity> activities) {
+    return delegate.saveAll(activities);
+  }
 
   @Override
   public List<Activity> findAll() {
@@ -26,6 +31,14 @@ public class ActivityRepositoryJpaAdapter implements ActivityRepository {
 
   @Override
   public List<Activity> findByProjectIdOrderByAtDesc(String projectId) {
+    if (projectId == null || projectId.isBlank()) {
+      return List.of();
+    }
     return delegate.findByProjectIdOrderByAtDesc(projectId);
+  }
+  
+  @Override
+  public void deleteAll() {
+    delegate.deleteAll();
   }
 }

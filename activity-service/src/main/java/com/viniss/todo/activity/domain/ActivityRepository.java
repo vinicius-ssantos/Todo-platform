@@ -10,6 +10,8 @@ import java.util.List;
  */
 public interface ActivityRepository {
   Activity save(Activity activity);
+  List<Activity> saveAll(List<Activity> activities);
   List<Activity> findAll();
   List<Activity> findByProjectIdOrderByAtDesc(String projectId);
+  void deleteAll();
 }
