@@ -7,13 +7,13 @@ _Gerado em 2025-09-17_
 
 ## 1) Segurança **imediata**
 - [ ] **Revogar/rotacionar** quaisquer tokens expostos no repositório (ex.: `.env`).
-- [ ] Remover segredos do repo e adicionar entradas à `.gitignore`.
-- [ ] Mover segredos para **secrets do CI** / Vault / Secrets Manager.
-- [ ] Restringir **CORS** no REST: permitir apenas domínios confiáveis (produção e pré-produção).
-- [ ] Restringir **origins** do WebSocket (sem `*`).
-- [ ] Implementar **autenticação JWT** no `api-gateway` (OAuth2 Resource Server): validação de token e escopos.
+- [x] Remover segredos do repo e adicionar entradas à `.gitignore`.
+- [x] Mover segredos para **secrets do CI** / Vault / Secrets Manager.
+- [x] Restringir **CORS** no REST: permitir apenas domínios confiáveis (produção e pré-produção).
+- [x] Restringir **origins** do WebSocket (sem `*`).
+- [x] Implementar **autenticação JWT** no `api-gateway` (OAuth2 Resource Server): validação de token e escopos.
 - [ ] Implementar **autorização por `projectId`** (ex.: usuário deve ter acesso ao projeto nas rotas REST e no handshake do WS).
-- [ ] Configurar **headers de segurança** (Spring Security: `X-Content-Type-Options`, `X-Frame-Options`, `Content-Security-Policy`, `Referrer-Policy`).
+- [x] Configurar **headers de segurança** (Spring Security: `X-Content-Type-Options`, `X-Frame-Options`, `Content-Security-Policy`, `Referrer-Policy`).
 
 ## 2) Confiabilidade & Resiliência
 - [ ] Ativar **Circuit Breaker** (Resilience4j) para clientes Feign (CRUD de tasks).

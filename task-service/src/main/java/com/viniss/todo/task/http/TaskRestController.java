@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping(path = "/tasks", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -18,12 +19,14 @@ public class TaskRestController {
   public TaskRestController(TaskAppService service) { this.service = service; }
 
   @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+  @PreAuthorize("@authz.hasProjectAccess(authentication, #request.projectId())")
   public ResponseEntity<TaskResponse> create(@Valid @RequestBody CreateTaskRequest req) {
     TaskResponse created = service.create(req);
     return ResponseEntity.status(HttpStatus.CREATED).body(created);
   }
 
   @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+  @PreAuthorize("@authz.canAccessTask(authentication, #id)")
   public TaskResponse update(@PathVariable("id") String id, @Valid @RequestBody UpdateTaskRequest req) {
     return service.update(id, req);
   }
