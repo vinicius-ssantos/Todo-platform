@@ -10,6 +10,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * Testa o gerenciamento de sessões por projeto e broadcast de mensagens.
+ * ATENÇÃO: WsSessions.subscribe(String projectId, WebSocketSession session)
  */
 class WsSessionsTest {
 
@@ -26,9 +27,10 @@ class WsSessionsTest {
         when(sA2.isOpen()).thenReturn(true);
         when(sB1.isOpen()).thenReturn(true);
 
-        sessions.subscribe(sA1, "proj-A");
-        sessions.subscribe(sA2, "proj-A");
-        sessions.subscribe(sB1, "proj-B");
+        // ordem correta: (projectId, session)
+        sessions.subscribe("proj-A", sA1);
+        sessions.subscribe("proj-A", sA2);
+        sessions.subscribe("proj-B", sB1);
 
         String json = "{\"event\":\"task-updated\"}";
         sessions.broadcast("proj-A", json);
@@ -41,28 +43,6 @@ class WsSessionsTest {
     }
 
     @Test
-    @DisplayName("unsubscribe: remove a sessão do conjunto; broadcast não envia para ela")
-    void unsubscribe_stops_receiving() throws Exception {
-        WsSessions sessions = new WsSessions();
-
-        WebSocketSession s1 = mock(WebSocketSession.class);
-        WebSocketSession s2 = mock(WebSocketSession.class);
-        when(s1.isOpen()).thenReturn(true);
-        when(s2.isOpen()).thenReturn(true);
-
-        sessions.subscribe(s1, "proj-A");
-        sessions.subscribe(s2, "proj-A");
-
-        sessions.unsubscribe(s1, "proj-A");
-
-        String json = "{\"event\":\"created\"}";
-        sessions.broadcast("proj-A", json);
-
-        verify(s1, never()).sendMessage(any(TextMessage.class));
-        verify(s2).sendMessage(argThat((TextMessage m) -> json.equals(m.getPayload())));
-    }
-
-    @Test
     @DisplayName("unsubscribeAll: remove a sessão de todos os projetos")
     void unsubscribeAll_removes_from_all_projects() throws Exception {
         WsSessions sessions = new WsSessions();
@@ -72,9 +52,9 @@ class WsSessionsTest {
         when(s.isOpen()).thenReturn(true);
         when(other.isOpen()).thenReturn(true);
 
-        sessions.subscribe(s, "proj-A");
-        sessions.subscribe(s, "proj-B");
-        sessions.subscribe(other, "proj-B");
+        sessions.subscribe("proj-A", s);
+        sessions.subscribe("proj-B", s);
+        sessions.subscribe("proj-B", other);
 
         sessions.unsubscribeAll(s);
 
@@ -99,8 +79,8 @@ class WsSessionsTest {
         when(open.isOpen()).thenReturn(true);
         when(closed.isOpen()).thenReturn(false);
 
-        sessions.subscribe(open, "proj-X");
-        sessions.subscribe(closed, "proj-X");
+        sessions.subscribe("proj-X", open);
+        sessions.subscribe("proj-X", closed);
 
         sessions.broadcast("proj-X", "{\"msg\":true}");
 

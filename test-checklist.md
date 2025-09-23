@@ -29,7 +29,7 @@ _Marquei com [x] o que já existe no repositório. Os demais ficam como próximo
 - [x] **TaskEventListener (unit)**
   - [x] TaskCreated → mapeia e salva Activity
   - [x] TaskUpdated → mapeia e salva Activity
-  - [ ] Ignora mensagens inválidas/corpo inesperado
+  - [x] Ignora mensagens inválidas/corpo inesperado
 - [ ] **ActivityRepositoryJpaAdapter (unit)**
   - [ ] save delega
   - [ ] consultas específicas (se existirem)
@@ -52,20 +52,20 @@ _Marquei com [x] o que já existe no repositório. Os demais ficam como próximo
   - [x] Permite quando JWT tem acesso ao projectId
   - [x] Nega quando não tem
   - [x] Extrai projectId da query string
-- [ ] **WebSocketConfig (unit)**
-  - [ ] setAllowedOrigins usa app.websocket.allowed-origins
+- [x] **WebSocketConfig (unit)**
+  - [x] setAllowedOrigins usa app.websocket.allowed-origins
 - [x] **SecurityConfig (web)**
   - [x] Headers de segurança presentes (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy)
   - [x] CORS responde conforme allowed-origins
-  - [ ] Resource Server JWT protege endpoints
+  - [x] Resource Server JWT protege endpoints
 
 ## common / common-spring
 
 - [x] **CorrelationFilter (unit)**
   - [x] Sem header → gera UUID e limpa MDC
   - [x] Com header → usa valor e limpa MDC
-- [ ] **RequestLoggingInterceptor (unit)**
-  - [ ] preHandle define início; afterCompletion loga com status e CID
+- [x] **RequestLoggingInterceptor (unit)**
+  - [x] preHandle define início; afterCompletion loga com status e CID
   - [ ] Log de erro quando Exception presente
 - [x] **GlobalExceptionHandler (web)**
   - [x] Bean Validation (400) → ApiError 'validation_error'
@@ -73,5 +73,5 @@ _Marquei com [x] o que já existe no repositório. Os demais ficam como próximo
   - [x] HttpMessageNotReadable (400)
   - [x] MethodArgumentTypeMismatch (400)
   - [x] DataIntegrityViolation (409)
-  - [ ] CallNotPermitted (503)
+  - [x] CallNotPermitted (503)
   - [x] Timeout (504)
