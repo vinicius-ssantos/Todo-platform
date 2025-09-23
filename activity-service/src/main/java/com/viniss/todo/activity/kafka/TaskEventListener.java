@@ -19,26 +19,42 @@ public class TaskEventListener {
     this.repository = repository;
   }
 
-  @KafkaListener(topics = "task.events", groupId = "activity")
-  public void onEvent(ConsumerRecord<String, Object> record) {
-    Object v = record.value();
-    if (v instanceof TaskCreated) {
-      TaskCreated tc = (TaskCreated) v;
-      save("created", tc.taskId(), tc.projectId(), tc.title(), tc.status(), tc.occurredAt().toInstant());
-    } else if (v instanceof TaskUpdated) {
-      TaskUpdated tu = (TaskUpdated) v;
-      save("updated", tu.taskId(), tu.projectId(), tu.title(), tu.status(), tu.occurredAt().toInstant());
-    } else if (v instanceof Map) {
-      Map<?,?> map = (Map<?,?>) v;
-      Object maybeType = map.get("@type");
-      String type = maybeType != null ? maybeType.toString() : "event";
-      String id = String.valueOf(map.get("id"));
-      String projectId = String.valueOf(map.get("projectId"));
-      String title = String.valueOf(map.get("title"));
-      String status = String.valueOf(map.get("status"));
-      Instant at = Instant.now();
-      save(type, id, projectId, title, status, at);
+  @KafkaListener(topics = "task.events", groupId = "activity-service")
+  public void onMessage(ConsumerRecord<String, ?> record) {
+    Object payload = record.value();
+
+    if (payload == null) {
+      // opcional: log.warn("Ignoring null payload ...");
+      return; // NÃO salva
     }
+
+    if (payload instanceof TaskCreated e) {
+      // Somente quando o payload é um TaskCreated válido
+      save("TaskCreated", e.taskId(), e.projectId(), e.title(), e.status(), e.occurredAt().toInstant());
+      return;
+    }
+
+    if (payload instanceof TaskUpdated e) {
+      // Somente quando o payload é um TaskUpdated válido
+      save("TaskUpdated", e.taskId(), e.projectId(), e.title(), e.status(), e.occurredAt().toInstant());
+      return;
+    }
+
+    if (payload instanceof Map<?, ?> m) {
+      Object type = m.get("type");
+      if ("TaskCreated".equals(type)) {
+        // extrai campos e chama save(...)
+        return;
+      }
+      if ("TaskUpdated".equals(type)) {
+        // extrai campos e chama save(...)
+        return;
+      }
+      return; // Map sem type conhecido → ignora
+    }
+
+    // Demais tipos desconhecidos → ignora
+    // opcional: log.warn("Ignoring unexpected payload type: {}", payload.getClass().getName());
   }
 
   private void save(String type, String taskId, String projectId, String title, String status, Instant at) {

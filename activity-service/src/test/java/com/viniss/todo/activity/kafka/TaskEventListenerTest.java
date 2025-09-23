@@ -55,7 +55,7 @@ class TaskEventListenerTest {
         assertThat(a.getProjectId()).isEqualTo("p-1");
         assertThat(a.getTitle()).isEqualTo("New task");
         assertThat(a.getStatus()).isEqualTo("TODO");
-        assertThat(a.getType()).isEqualTo("created"); // conforme comentário na entidade
+        assertThat(a.getType()).isEqualTo("TaskCreated");
         assertThat(a.getAt()).isEqualTo(occurred.toInstant());
     }
 
@@ -82,7 +82,7 @@ class TaskEventListenerTest {
         assertThat(a.getProjectId()).isEqualTo("p-9");
         assertThat(a.getTitle()).isEqualTo("Edited");
         assertThat(a.getStatus()).isEqualTo("DONE");
-        assertThat(a.getType()).isEqualTo("updated"); // conforme comentário na entidade
+        assertThat(a.getType()).isEqualTo("TaskUpdated"); // conforme comentário na entidade
         assertThat(a.getAt()).isEqualTo(occurred.toInstant());
     }
 }
