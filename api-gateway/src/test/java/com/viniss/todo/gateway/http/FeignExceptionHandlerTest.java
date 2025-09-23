@@ -1,6 +1,8 @@
 package com.viniss.todo.gateway.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.viniss.todo.common.http.ApiError;
 import feign.FeignException;
 import feign.Request;
@@ -17,9 +19,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class FeignExceptionHandlerTest {
 
+    // 👇 ObjectMapper configurado para datas Java 8 (OffsetDateTime etc.)
+    private static final ObjectMapper OM = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
     private FeignException errorWithBody(int status, ApiError body) throws Exception {
-        ObjectMapper om = new ObjectMapper();
-        byte[] json = om.writeValueAsBytes(body);
+        byte[] json = OM.writeValueAsBytes(body);
 
         Request req = Request.create(
                 Request.HttpMethod.GET,
@@ -34,6 +40,7 @@ class FeignExceptionHandlerTest {
                 .status(status)
                 .reason("ERR")
                 .request(req)
+                .headers(Collections.singletonMap("Content-Type", Collections.singletonList("application/json")))
                 .body(json) // corpo JSON do upstream simulando ApiError
                 .build();
 
@@ -87,7 +94,7 @@ class FeignExceptionHandlerTest {
         assertThat(resp.getBody()).isInstanceOf(ApiError.class);
 
         ApiError body = (ApiError) resp.getBody();
-        // Dependendo da sua implementação, pode ser "upstream_error" ou "internal_error".
+        // Ajuste para o código real do seu handler no fallback:
         assertThat(body.code()).isIn("upstream_error", "internal_error");
     }
 }
