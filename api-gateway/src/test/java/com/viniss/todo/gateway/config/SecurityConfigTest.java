@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,22 +25,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class SecurityConfigTest {
 
-    @Autowired
-    MockMvc mvc;
+    @Autowired MockMvc mvc;
 
+    /** Controller mínimo só para exercitar a chain e evitar 404 de estático */
     @RestController
     @RequestMapping("/test")
     static class PingController {
-        @GetMapping("/ping")
-        public String ping() { return "pong"; }
+        @GetMapping(value = "/ping", produces = MediaType.APPLICATION_JSON_VALUE)
+        public String ping() { return "{\"ok\":true}"; }
     }
 
     @Test
-    @DisplayName("Headers de segurança são adicionados (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy)")
+    @DisplayName("Headers de segurança presentes")
     void securityHeadersPresent() throws Exception {
         mvc.perform(get("/test/ping")
-                        .with(SecurityMockMvcRequestPostProcessors.jwt()) // autentica para não cair em 401
-                        .accept(MediaType.TEXT_PLAIN))
+                        .with(jwt())                                   // autentica (evita 401)
+                        .accept(MediaType.APPLICATION_JSON))           // evita 406 (preferir JSON)
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(header().exists("X-Frame-Options"))
@@ -50,7 +49,7 @@ class SecurityConfigTest {
     }
 
     @Test
-    @DisplayName("CORS: preflight OPTIONS responde com origin permitido e métodos")
+    @DisplayName("CORS preflight OK p/ origin permitido")
     void corsPreflight() throws Exception {
         mvc.perform(options("/test/ping")
                         .header("Origin", "http://allowed.test")
