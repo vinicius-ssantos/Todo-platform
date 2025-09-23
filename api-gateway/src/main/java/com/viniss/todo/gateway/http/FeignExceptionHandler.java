@@ -2,37 +2,59 @@ package com.viniss.todo.gateway.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.viniss.todo.common.http.ApiError;
+import feign.FeignException;
 import org.slf4j.MDC;
-import org.springframework.http.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import feign.FeignException;
 
-import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.util.Map;
 
 @RestControllerAdvice
 public class FeignExceptionHandler {
-  private final ObjectMapper om = new ObjectMapper();
+
+  private final ObjectMapper om;
+
+  public FeignExceptionHandler(ObjectMapper om) {
+    this.om = om;
+  }
 
   @ExceptionHandler(FeignException.class)
   public ResponseEntity<?> handleFeign(FeignException ex) {
-    int status = ex.status() <= 0 ? 502 : ex.status();
+    int status = ex.status();
 
-    // Tenta desserializar o corpo como ApiError
+    // Feign 12+: responseBody() -> Optional<ByteBuffer>
+    byte[] bodyBytes = null;
     try {
-      if (ex.responseBody().isPresent()) {
-        var buf = ex.responseBody().get().array();
-        var json = new String(buf, StandardCharsets.UTF_8);
-        var apiError = om.readValue(json, ApiError.class);
-        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(apiError);
+      var opt = ex.responseBody(); // Optional<ByteBuffer>
+      if (opt.isPresent()) {
+        ByteBuffer buf = opt.get().asReadOnlyBuffer();
+        bodyBytes = new byte[buf.remaining()];
+        buf.get(bodyBytes);
       }
-    } catch (Exception ignore) { /* corpo não é ApiError */ }
+    } catch (Throwable ignore) {
+      // versões antigas/variações: se precisar, dá para tentar ex.content()
+      // if (bodyBytes == null && ex.content() != null) bodyBytes = ex.content();
+    }
 
-    var body = ApiError.of("upstream_error",
-        "Erro ao chamar serviço interno",
-        Map.of("service", "task-service", "status", status),
-        MDC.get("cid"));
-    return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(body);
+    // Tenta propagar ApiError do upstream
+    if (bodyBytes != null && bodyBytes.length > 0) {
+      try {
+        ApiError upstream = om.readValue(bodyBytes, ApiError.class);
+        return ResponseEntity.status(status).body(upstream);
+      } catch (Exception ignore) {
+        // corpo não era ApiError - cai no fallback
+      }
+    }
+
+    // Fallback padrão
+    ApiError fallback = ApiError.of(
+            "upstream_error",
+            ex.getMessage(),
+            Map.of("upstreamStatus", status),
+            MDC.get("cid")
+    );
+    return ResponseEntity.status(status).body(fallback);
   }
 }

@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class FeignExceptionHandlerTest {
 
-    // 👇 ObjectMapper configurado para datas Java 8 (OffsetDateTime etc.)
+    // Mapper com suporte a datas Java 8
     private static final ObjectMapper OM = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -31,7 +31,7 @@ class FeignExceptionHandlerTest {
                 Request.HttpMethod.GET,
                 "http://example/test",
                 Collections.emptyMap(),
-                null, // corpo da requisição (não usamos)
+                null,
                 StandardCharsets.UTF_8,
                 null
         );
@@ -41,7 +41,7 @@ class FeignExceptionHandlerTest {
                 .reason("ERR")
                 .request(req)
                 .headers(Collections.singletonMap("Content-Type", Collections.singletonList("application/json")))
-                .body(json) // corpo JSON do upstream simulando ApiError
+                .body(json)
                 .build();
 
         return FeignException.errorStatus("GET http://example/test", resp);
@@ -69,7 +69,9 @@ class FeignExceptionHandlerTest {
     @Test
     @DisplayName("Quando upstream retorna ApiError JSON, propaga como está")
     void propagateApiErrorBody() throws Exception {
-        FeignExceptionHandler handler = new FeignExceptionHandler();
+        // ⬇️ passa o ObjectMapper no construtor
+        FeignExceptionHandler handler = new FeignExceptionHandler(OM);
+
         ApiError upstream = ApiError.of("not_found", "X", Map.of("k","v"), "cid-1");
 
         ResponseEntity<?> resp = handler.handleFeign(errorWithBody(404, upstream));
@@ -86,7 +88,7 @@ class FeignExceptionHandlerTest {
     @Test
     @DisplayName("Sem corpo ApiError → retorna erro padrão com status propagado")
     void fallbackWhenNotApiError() {
-        FeignExceptionHandler handler = new FeignExceptionHandler();
+        FeignExceptionHandler handler = new FeignExceptionHandler(OM);
 
         ResponseEntity<?> resp = handler.handleFeign(errorWithoutBody(500));
 
@@ -94,7 +96,7 @@ class FeignExceptionHandlerTest {
         assertThat(resp.getBody()).isInstanceOf(ApiError.class);
 
         ApiError body = (ApiError) resp.getBody();
-        // Ajuste para o código real do seu handler no fallback:
-        assertThat(body.code()).isIn("upstream_error", "internal_error");
+        // Se seu handler de fallback usa "upstream_error":
+        assertThat(body.code()).isEqualTo("upstream_error");
     }
 }
