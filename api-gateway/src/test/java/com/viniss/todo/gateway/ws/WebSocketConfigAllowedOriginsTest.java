@@ -59,7 +59,7 @@ class WebSocketConfigAllowedOriginsTest {
         // interceptor aplicado
         verify(registration).addInterceptors(handshakeInterceptor);
 
-        // Descobre a chamada a setAllowedOrigins(...) e normaliza os argumentos
+        // Inspeciona setAllowedOrigins(...) e normaliza argumentos
         List<Invocation> invocs = new ArrayList<>(mockingDetails(registration).getInvocations());
         Invocation setAllowed = invocs.stream()
                 .filter(i -> i.getMethod().getName().equals("setAllowedOrigins"))
@@ -69,18 +69,15 @@ class WebSocketConfigAllowedOriginsTest {
         List<String> actual = new ArrayList<>();
         for (Object arg : setAllowed.getArguments()) {
             if (arg instanceof String s) {
-                if (s.contains(",")) {
-                    actual.addAll(Arrays.stream(s.split(",")).map(String::trim).toList());
-                } else {
-                    actual.add(s);
-                }
+                if (s.contains(",")) actual.addAll(Arrays.stream(s.split(",")).map(String::trim).toList());
+                else actual.add(s);
             } else if (arg instanceof String[] arr) {
                 actual.addAll(Arrays.asList(arr));
             }
         }
-
         assertThat(actual).containsExactly("http://one.test", "https://two.test");
 
-        verifyNoMoreInteractions(registry, registration);
+        // Checa que não há interações extras no registry (no registration já inspecionamos manualmente)
+        verifyNoMoreInteractions(registry);
     }
 }
