@@ -13,7 +13,7 @@ import org.springframework.security.config.annotation.web.socket.AbstractSecurit
  */
 @Configuration
 @ConditionalOnProperty(name = "app.security.web-customizer.enabled", havingValue = "true")
-public class WebSecurityConfig extends AbstractSecurityWebSocketMessageBrokerConfigurer
+public class WebSecurityConfig
 {
 
     /**
@@ -27,10 +27,6 @@ public class WebSecurityConfig extends AbstractSecurityWebSocketMessageBrokerCon
             .requestMatchers("/static/**", "/assets/**");
     }
 
-    @Override
-    protected boolean sameOriginDisabled() {
-        // Permitir origens diferentes (já controlado pelo CORS no WebSocketConfig)
-        return true;
-    }
+
 
 }
