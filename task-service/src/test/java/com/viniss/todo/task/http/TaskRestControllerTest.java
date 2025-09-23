@@ -3,16 +3,18 @@ package com.viniss.todo.task.http;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.viniss.todo.task.service.TaskAppService;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,52 +27,37 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * Web layer tests para TaskRestController com MockMvc.
- * Foco: códigos HTTP e Bean Validation.
- * Observação: não validamos o corpo para evitar acoplamento ao TaskResponse.
- */
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(controllers = TaskRestController.class)
-@Import(TaskRestControllerWebTest.TestConfig.class)
+@Import(TaskRestControllerWebTest.TestSecurityConfig.class) // <- libera tudo e desabilita CSRF no teste
 class TaskRestControllerWebTest {
 
-    @Autowired
-    MockMvc mvc;
-
-    @Autowired
-    ObjectMapper om;
-
-    @Autowired
-    TaskAppService service;
-
     @TestConfiguration
-    static class TestConfig {
+    static class TestSecurityConfig {
         @Bean
-        TaskAppService service() {
-            return Mockito.mock(TaskAppService.class);
+        SecurityFilterChain testFilterChain(HttpSecurity http) throws Exception {
+            return http
+                    .csrf(csrf -> csrf.disable())
+                    .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                    .build();
         }
     }
 
-    private String json(Object o) throws Exception {
-        return om.writeValueAsString(o);
-    }
+    @Autowired MockMvc mvc;
+    @Autowired ObjectMapper om;
 
-    @BeforeEach
-    void resetMocks() {
-        Mockito.reset(service);
-    }
+    @MockBean TaskAppService service;
 
-    // ========= CREATE =========
-    @Test
-    @DisplayName("POST /tasks -> 201 Created (payload válido)")
+    private String json(Object o) throws Exception { return om.writeValueAsString(o); }
+
+    @Test @DisplayName("POST /tasks -> 201 Created (payload válido)")
     void create_returns201() throws Exception {
-        Mockito.when(service.create(any())).thenReturn(null); // só nos importam os status
+        Mockito.when(service.create(any())).thenReturn(null);
 
         var body = Map.of(
-                "title", "Write tests",
-                "description", "Cobrir TaskAppService",
-                "projectId", "project-123",
+                "title","Write tests",
+                "description","Cobrir TaskAppService",
+                "projectId","project-123",
                 "labels", List.of("backend","tests")
         );
 
@@ -80,16 +67,14 @@ class TaskRestControllerWebTest {
                 .andExpect(status().isCreated());
     }
 
-    // ========= UPDATE =========
-    @Test
-    @DisplayName("PUT /tasks/{id} -> 200 OK (payload válido)")
+    @Test @DisplayName("PUT /tasks/{id} -> 200 OK (payload válido)")
     void update_returns200() throws Exception {
         Mockito.when(service.update(anyString(), any())).thenReturn(null);
 
         var body = Map.of(
-                "title", "Novo título",
-                "description", "Nova descrição",
-                "status", "DONE",
+                "title","Novo título",
+                "description","Nova descrição",
+                "status","DONE",
                 "labels", List.of("x","y")
         );
 
@@ -99,15 +84,11 @@ class TaskRestControllerWebTest {
                 .andExpect(status().isOk());
     }
 
-    // ========= PATCH =========
-    @Test
-    @DisplayName("PATCH /tasks/{id} -> 200 OK (parcial)")
+    @Test @DisplayName("PATCH /tasks/{id} -> 200 OK (parcial)")
     void patch_returns200() throws Exception {
         Mockito.when(service.patch(anyString(), any())).thenReturn(null);
 
-        var body = Map.of(
-                "title", "Parcial"
-        );
+        var body = Map.of("title","Parcial");
 
         mvc.perform(patch("/tasks/{id}", "t-1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -115,14 +96,12 @@ class TaskRestControllerWebTest {
                 .andExpect(status().isOk());
     }
 
-    // ========= BEAN VALIDATION =========
-    @Test
-    @DisplayName("POST /tasks -> 400 Bad Request quando título em branco")
+    @Test @DisplayName("POST /tasks -> 400 quando título em branco")
     void create_returns400_whenTitleBlank() throws Exception {
         var body = Map.of(
-                "title", "   ",                  // em branco
-                "description", "desc",
-                "projectId", "project-123"
+                "title","   ",
+                "description","desc",
+                "projectId","project-123"
         );
 
         mvc.perform(post("/tasks")
@@ -130,15 +109,12 @@ class TaskRestControllerWebTest {
                         .content(json(body)))
                 .andExpect(status().isBadRequest());
 
-        // service não deve ser chamado quando a validação falha
         verifyNoInteractions(service);
     }
 
-    @Test
-    @DisplayName("POST /tasks -> 400 Bad Request quando título ultrapassa limite")
+    @Test @DisplayName("POST /tasks -> 400 quando título ultrapassa limite")
     void create_returns400_whenTitleTooLong() throws Exception {
-        // Ajuste este valor para bater com o @Size do seu CreateTaskRequest (ex.: max=120/140/255)
-        int MAX_TITLE = 120;
+        int MAX_TITLE = 120; // ajuste para o @Size real do seu CreateTaskRequest
         String over = "X".repeat(MAX_TITLE + 1);
 
         var body = Map.of(
