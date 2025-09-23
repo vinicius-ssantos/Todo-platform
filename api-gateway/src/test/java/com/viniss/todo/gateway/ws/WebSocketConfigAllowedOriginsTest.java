@@ -3,6 +3,7 @@ package com.viniss.todo.gateway.ws;
 import com.viniss.todo.gateway.WebSocketConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.invocation.Invocation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,13 +12,14 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistration;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 /**
@@ -54,21 +56,30 @@ class WebSocketConfigAllowedOriginsTest {
 
         // /ws registrado com o handler injetado
         verify(registry).addHandler(taskWsHandler, "/ws");
-
-        // Valida allowed-origins aceitando tanto ["a","b"] quanto ["a,b"]
-        verify(registration).setAllowedOrigins(argThat(passed -> {
-            if (passed == null) return false;
-            List<String> actual;
-            if (passed.length == 1 && passed[0] != null && passed[0].contains(",")) {
-                actual = Arrays.stream(passed[0].split(",")).map(String::trim).toList();
-            } else {
-                actual = Arrays.asList(passed);
-            }
-            return actual.equals(List.of("http://one.test", "https://two.test"));
-        }));
-
         // interceptor aplicado
         verify(registration).addInterceptors(handshakeInterceptor);
+
+        // Descobre a chamada a setAllowedOrigins(...) e normaliza os argumentos
+        List<Invocation> invocs = new ArrayList<>(mockingDetails(registration).getInvocations());
+        Invocation setAllowed = invocs.stream()
+                .filter(i -> i.getMethod().getName().equals("setAllowedOrigins"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("setAllowedOrigins não foi chamado"));
+
+        List<String> actual = new ArrayList<>();
+        for (Object arg : setAllowed.getArguments()) {
+            if (arg instanceof String s) {
+                if (s.contains(",")) {
+                    actual.addAll(Arrays.stream(s.split(",")).map(String::trim).toList());
+                } else {
+                    actual.add(s);
+                }
+            } else if (arg instanceof String[] arr) {
+                actual.addAll(Arrays.asList(arr));
+            }
+        }
+
+        assertThat(actual).containsExactly("http://one.test", "https://two.test");
 
         verifyNoMoreInteractions(registry, registration);
     }
