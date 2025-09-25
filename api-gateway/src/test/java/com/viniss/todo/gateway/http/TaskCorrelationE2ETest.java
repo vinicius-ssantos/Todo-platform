@@ -6,12 +6,15 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.io.IOException;
 import java.time.OffsetDateTime;
@@ -20,26 +23,14 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
-/**
- * E2E: garante que o gateway:
- *  - preserva o X-Correlation-Id enviado pelo cliente;
- *  - gera um novo UUID quando o header não é enviado;
- *  - propaga esse header para o serviço downstream (Feign → MockWebServer).
- *
- * IMPORTANTE:
- *  - Ajuste a propriedade "<feignName>.url" se o nome do seu @FeignClient não for "task-service".
- *    Ex.: se for @FeignClient(name = "todo-tasks"), troque para "todo-tasks.url" no DynamicPropertySource.
- */
+@AutoConfigureMockMvc
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
-                // Desabilita segurança somente nesta classe de teste (foco no Correlation-Id)
-                "spring.autoconfigure.exclude=" +
-                        "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration," +
-                        "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration",
-
-                // Evita subir listener Kafka nos testes
+                // Evita subir Kafka/consumidores nos testes
                 "spring.kafka.listener.auto-startup=false",
                 "spring.kafka.bootstrap-servers=localhost:0"
         }
@@ -48,11 +39,8 @@ class TaskCorrelationE2ETest {
 
     static MockWebServer downstream;
 
-    @LocalServerPort
-    int port;
-
     @Autowired
-    TestRestTemplate rest;
+    MockMvc mvc;
 
     static final ObjectMapper om = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -69,8 +57,10 @@ class TaskCorrelationE2ETest {
 
     @DynamicPropertySource
     static void overrideFeignUrl(DynamicPropertyRegistry registry) {
-        // Se o seu @FeignClient tiver outro name, ajuste aqui: "<name>.url"
-        registry.add("task-service.url", () -> "http://localhost:" + downstream.getPort());
+        // ATENÇÃO: ajuste a chave "<name>.url" para o "name" usado no seu @FeignClient
+        // Ex.: se for @FeignClient(name="todo-tasks") => "todo-tasks.url"
+        registry.add("clients.task.url", () -> "http://localhost:" + downstream.getPort());
+
     }
 
     private static String sampleDownstreamJson() throws Exception {
@@ -88,6 +78,25 @@ class TaskCorrelationE2ETest {
         return om.writeValueAsString(body);
     }
 
+    private static String payloadJson() throws Exception {
+        var payload = Map.of(
+                "title", "Nova",
+                "description", "desc",
+                "projectId", "proj-1",
+                "labels", List.of("a", "b")
+        );
+        return om.writeValueAsString(payload);
+    }
+
+    /** Post-processor que injeta um JWT com escopo/autoridade aceitos pela sua SecurityConfig. */
+    private static RequestPostProcessor jwtWrite() {
+        return jwt().jwt(j -> {
+            j.claim("scope", "todo.write");
+            j.claim("scp", java.util.List.of("todo.write"));
+            j.subject("tester");
+        }).authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("SCOPE_todo.write"));
+    }
+
     @Test
     void preserves_and_propagates_client_correlation_id() throws Exception {
         downstream.enqueue(new MockResponse()
@@ -97,31 +106,27 @@ class TaskCorrelationE2ETest {
 
         String cid = "11111111-1111-1111-1111-111111111111";
 
-        var headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("X-Correlation-Id", cid);
+        MvcResult res = mvc.perform(post("/tasks")
+                        .with(jwtWrite())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Correlation-Id", cid)
+                        .content(payloadJson()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andReturn();
 
-        var payload = Map.of(
-                "title", "Nova",
-                "description", "desc",
-                "projectId", "proj-1",
-                "labels", List.of("a", "b")
+        // Correlation-Id deve estar no response
+        String returned = firstNonNull(
+                res.getResponse().getHeader("X-Correlation-Id"),
+                res.getResponse().getHeader("Correlation-Id")
         );
-
-        var resp = rest.postForEntity("http://localhost:" + port + "/tasks",
-                new HttpEntity<>(payload, headers), Map.class);
-
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-        // Header deve estar presente na resposta do gateway
-        var returned = firstNonNull(resp.getHeaders().getFirst("X-Correlation-Id"),
-                resp.getHeaders().getFirst("Correlation-Id"));
         assertThat(returned).isEqualTo(cid);
 
-        // Validar propagação no request enviado ao downstream
+        // E deve ser propagado ao downstream (Feign -> MockWebServer)
         var recorded = downstream.takeRequest();
-        String forwarded = firstNonNull(recorded.getHeader("X-Correlation-Id"),
-                recorded.getHeader("Correlation-Id"));
+        String forwarded = firstNonNull(
+                recorded.getHeader("X-Correlation-Id"),
+                recorded.getHeader("Correlation-Id")
+        );
         assertThat(forwarded).isEqualTo(cid);
     }
 
@@ -132,31 +137,27 @@ class TaskCorrelationE2ETest {
                 .addHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .setBody(sampleDownstreamJson()));
 
-        var headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        MvcResult res = mvc.perform(post("/tasks")
+                        .with(jwtWrite())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payloadJson()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andReturn();
 
-        var payload = Map.of(
-                "title", "Nova",
-                "description", "desc",
-                "projectId", "proj-1",
-                "labels", List.of("a", "b")
+        // Deve gerar um UUID no response
+        String returned = firstNonNull(
+                res.getResponse().getHeader("X-Correlation-Id"),
+                res.getResponse().getHeader("Correlation-Id")
         );
-
-        var resp = rest.postForEntity("http://localhost:" + port + "/tasks",
-                new HttpEntity<>(payload, headers), Map.class);
-
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-        // Gateway deve gerar um UUID válido
-        var returned = firstNonNull(resp.getHeaders().getFirst("X-Correlation-Id"),
-                resp.getHeaders().getFirst("Correlation-Id"));
         assertThat(returned).isNotBlank();
         UUID.fromString(returned);
 
-        // E deve propagar ao downstream
+        // E propagar ao downstream
         var recorded = downstream.takeRequest();
-        String forwarded = firstNonNull(recorded.getHeader("X-Correlation-Id"),
-                recorded.getHeader("Correlation-Id"));
+        String forwarded = firstNonNull(
+                recorded.getHeader("X-Correlation-Id"),
+                recorded.getHeader("Correlation-Id")
+        );
         assertThat(forwarded).isEqualTo(returned);
     }
 

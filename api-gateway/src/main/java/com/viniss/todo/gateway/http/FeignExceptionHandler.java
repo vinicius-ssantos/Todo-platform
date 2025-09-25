@@ -3,7 +3,9 @@ package com.viniss.todo.gateway.http;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.viniss.todo.common.http.ApiError;
 import feign.FeignException;
+import feign.RetryableException;
 import org.slf4j.MDC;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -23,6 +25,12 @@ public class FeignExceptionHandler {
   @ExceptionHandler(FeignException.class)
   public ResponseEntity<?> handleFeign(FeignException ex) {
     int status = ex.status();
+
+    // RetryableException ou qualquer status inválido → 503
+    if (ex instanceof RetryableException || status < 100 || status > 999) {
+      status = HttpStatus.SERVICE_UNAVAILABLE.value();
+    }
+
 
     // Feign 12+: responseBody() -> Optional<ByteBuffer>
     byte[] bodyBytes = null;

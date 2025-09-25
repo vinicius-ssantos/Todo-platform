@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -59,6 +60,7 @@ class TaskControllerCorrelationIdTest {
         String cid = "11111111-1111-1111-1111-111111111111";
 
         mvc.perform(post("/tasks")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .header(headerName, cid)
                         .content(om.writeValueAsString(new CreateTaskRequest("Nova","desc","proj-1", List.of()))))
@@ -78,6 +80,7 @@ class TaskControllerCorrelationIdTest {
         when(client.create(any())).thenReturn(sample());
 
         mvc.perform(post("/tasks")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(om.writeValueAsString(new CreateTaskRequest("Nova","desc","proj-1", List.of()))))
                 .andExpect(status().isOk())
