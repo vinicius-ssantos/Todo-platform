@@ -23,16 +23,31 @@ public class RequestLoggingInterceptor implements HandlerInterceptor {
   }
 
   @Override
-  public void afterCompletion(HttpServletRequest req, HttpServletResponse res, Object handler, @Nullable Exception ex) {
-    Long start = (Long) req.getAttribute(START_TS);
-    long tookMs = start == null ? -1 : Math.round((System.nanoTime() - start) / 1_000_000.0);
-    if (ex == null) {
-      log.info("request_end method={} path={} status={} took_ms={} cid={}",
-          req.getMethod(), req.getRequestURI(), res.getStatus(), tookMs, MDC.get(CorrelationFilter.CID_KEY));
+  public void afterCompletion(HttpServletRequest req, HttpServletResponse res, Object handler, Exception ex) {
+    long tookMs = 0L;
+    Object start = req.getAttribute("req.startNanos");
+    if (start instanceof Long s) {
+      tookMs = (System.nanoTime() - s) / 1_000_000;
+    }
+
+    int status = res.getStatus();
+    boolean isError = (ex != null) || status >= 500;
+
+    if (isError) {
+      if (ex != null) {
+        // último argumento Throwable vira stacktrace no logback/slf4j
+        log.error("request_error method={} path={} status={} took_ms={} error={} cid={}",
+                req.getMethod(), req.getRequestURI(), status, tookMs,
+                ex.getClass().getSimpleName(), MDC.get("cid"), ex);
+      } else {
+        log.error("request_error method={} path={} status={} took_ms={} error={} cid={}",
+                req.getMethod(), req.getRequestURI(), status, tookMs,
+                "Http" + status, MDC.get("cid"));
+      }
     } else {
-      log.warn("request_error method={} path={} status={} took_ms={} error={} cid={}",
-          req.getMethod(), req.getRequestURI(), res.getStatus(), tookMs, ex.getClass().getSimpleName(),
-          MDC.get(CorrelationFilter.CID_KEY));
+      log.info("request_end method={} path={} status={} took_ms={} cid={}",
+              req.getMethod(), req.getRequestURI(), status, tookMs, MDC.get("cid"));
     }
   }
+
 }

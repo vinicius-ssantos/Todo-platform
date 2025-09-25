@@ -12,6 +12,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import jakarta.annotation.Nullable;
@@ -26,6 +27,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@WithMockUser
 @WebMvcTest(controllers = TaskController.class)
 class TaskControllerCorrelationIdTest {
 
@@ -50,6 +52,7 @@ class TaskControllerCorrelationIdTest {
     private TaskResponse sample() {
         return new TaskResponse("t-1", "proj-1", "Nova", "desc", "OPEN", null, null, List.of());
     }
+
 
     @Test
     @DisplayName("Preserva Correlation-Id enviado pelo cliente")

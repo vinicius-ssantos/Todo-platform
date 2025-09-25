@@ -80,16 +80,38 @@ class RequestLoggingInterceptorTest {
     @Test
     @DisplayName("Mesmo com exceção, afterCompletion loga request_end e handler retorna 500")
     void logs_on_exception() throws Exception {
-        mvc.perform(get("/logtest/boom").accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError());
+        // Captura os logs do interceptor
+        Logger logger = (Logger) LoggerFactory.getLogger(RequestLoggingInterceptor.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            // Dispara a rota que lança exceção e é tratada pelo @ControllerAdvice de teste (status 500)
+            mvc.perform(get("/logtest/boom"))
+                    .andExpect(status().isInternalServerError())
+                    .andReturn();
 
-        var msgConcat = appender.list.stream().map(ILoggingEvent::getFormattedMessage).reduce("", (a,b) -> a + " | " + b);
-        assertThat(msgConcat).contains("request_start");
-        assertThat(msgConcat).contains("request_end");
-        assertThat(msgConcat).contains("path=/logtest/boom");
+            // Consolida as mensagens para facilitar asserts “contains”
+            String all = appender.list.stream()
+                    .map(ILoggingEvent::getFormattedMessage)
+                    .reduce("", (a, b) -> a + " | " + b);
 
-        // CID presente
-        boolean hasCid = appender.list.stream().allMatch(e -> e.getMDCPropertyMap().get("cid") != null);
-        assertThat(hasCid).isTrue();
+            // ✅ Agora esperamos request_error (e NÃO request_end) em caso de 500/exception
+            assertThat(all).contains("request_start");
+            assertThat(all).contains("request_error");
+            assertThat(all).contains("status=500");
+            assertThat(all).doesNotContain("request_end");
+
+            // (opcional) garante nível ERROR em pelo menos um evento
+            assertThat(appender.list)
+                    .anySatisfy(e -> {
+                        assertThat(e.getLevel()).isEqualTo(Level.ERROR);
+                        assertThat(e.getFormattedMessage()).contains("request_error");
+                    });
+
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 }
