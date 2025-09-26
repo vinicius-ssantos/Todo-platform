@@ -95,7 +95,7 @@
       <plugin>
         <groupId>com.google.cloud.tools</groupId>
         <artifactId>jib-maven-plugin</artifactId>
-        <version>3.4.0</version>
+        <version>3.4.6</version>
         <configuration>
           <to>
             <image>ghcr.io/${env.GH_REPOSITORY_LOWER}/${project.artifactId}</image>
